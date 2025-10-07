@@ -1,3 +1,0 @@
-C:/Users/dhuy8/OneDrive/Documents/SoDoCay/src/build/CMakeFiles/SoDoCay.dir
-C:/Users/dhuy8/OneDrive/Documents/SoDoCay/src/build/CMakeFiles/edit_cache.dir
-C:/Users/dhuy8/OneDrive/Documents/SoDoCay/src/build/CMakeFiles/rebuild_cache.dir
