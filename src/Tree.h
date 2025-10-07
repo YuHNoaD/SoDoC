@@ -29,7 +29,7 @@ public:
     static bool canMarry(Node* u, Node* v);
     
     // Tinh khoang cach the he giua cac nut
-    static int getGenerationDistance(Node* ancestor, Node* p1, Node* p2);
+    static int getGenDistance(Node* ancestor, Node* p1, Node* p2);
     
     // Tra ve ten moi quan he dua tren khoang cach the he
     static wxString getRelationshipType(int genDiff);
@@ -39,6 +39,10 @@ public:
     static void addRelationship(std::map<wxString, Node*>& nodes, const wxString& parentName, const wxString& childName, Node*& root);
     static wxString loadSampleDataFromFile();
     static void calculatePositions(Node* root, std::map<wxString, Node*>& nodes);
+    
+    // Recursive helper functions for tree layout
+    static int calculateSubtreeWidth(Node* node);
+    static void positionTreeRecursively(Node* node, int depth, int& currentX, int horizontalSpacing, int verticalSpacing);
 };
 
 #endif // TREE_H

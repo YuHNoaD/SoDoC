@@ -86,6 +86,36 @@ void DrawPanel::OnPaint(wxPaintEvent& evt)
     }
     dc.SetUserScale(scale, scale);
     CalculatePositions();
+    
+    std::set<std::pair<Node*, Node*>> highlightEdges;
+    if (lca && person1 && person2) { 
+        Node* current = person1;
+        Node* prev = nullptr;
+        while (current && current != lca) {
+            prev = current;
+            current = current->parent;
+            if (current && prev) {
+                highlightEdges.insert({current, prev});
+                highlightEdges.insert({prev, current});
+            }
+        }
+        
+        current = person2;
+        prev = nullptr;
+        while (current && current != lca) {
+            prev = current;
+            current = current->parent;
+            if (current && prev) {
+                std::pair<Node*, Node*> edge1 = {current, prev};
+                std::pair<Node*, Node*> edge2 = {prev, current};
+                if (highlightEdges.count(edge1) == 0 && highlightEdges.count(edge2) == 0) {
+                    highlightEdges.insert(edge1);
+                    highlightEdges.insert(edge2);
+                }
+            }
+        }
+    }
+    
     for (auto& pair : *nodes) {
         Node* node = pair.second;
         for (Node* child : node->children) {
@@ -93,38 +123,15 @@ void DrawPanel::OnPaint(wxPaintEvent& evt)
             int y1 = node->y + offsetY / scale + 30;
             int x2 = child->x + offsetX / scale + 50;
             int y2 = child->y + offsetY / scale;
-            // kiem tra canh thuoc per1 den per2
-            bool isOnHighlightPath = false;
-            if (lca) {
-                // kiemtra toi lca
-                Node* current = person1;
-                while (current && current != lca && current->parent) {
-                    if ((current == node && current->parent == child) ||
-                        (current->parent == node && current == child)) {
-                        isOnHighlightPath = true;
-                        break;
-                    }
-                    current = current->parent;
-                }
-                // chua thi ktra ca per2
-                if (!isOnHighlightPath) {
-                    current = person2;
-                    while (current && current != lca && current->parent) {
-                        if ((current == node && current->parent == child) ||
-                            (current->parent == node && current == child)) {
-                            isOnHighlightPath = true;
-                            break;
-                        }
-                        current = current->parent;
-                    }
-                }
-            }
-            if (isOnHighlightPath) {  // highligh path cua 2 nguoi
+            bool isOnHighlightPath = highlightEdges.count({node, child}) > 0 || 
+                                   highlightEdges.count({child, node}) > 0;
+            
+            if (isOnHighlightPath) {  // highlight path cua 2 nguoi
                 if (canMarry) {
-                    dc.SetPen(wxPen(wxColour(0, 150, 0), 3)); // Xanh
+                    dc.SetPen(wxPen(wxColour(0, 150, 0), 2));
                 }
                 else {
-                    dc.SetPen(wxPen(wxColour(200, 0, 0), 3)); // Red Flag
+                    dc.SetPen(wxPen(wxColour(200, 0, 0), 3));
                 }
             }
             else {
@@ -133,55 +140,47 @@ void DrawPanel::OnPaint(wxPaintEvent& evt)
             dc.DrawLine(x1, y1, x2, y2);
         }
     }
+    std::set<Node*> pathNodes;
+    if (lca && person1 && person2) {
+        Node* current = person1;
+        while (current && current != lca) {
+            pathNodes.insert(current);
+            current = current->parent;
+        }
+        pathNodes.insert(lca); 
+        current = person2;
+        while (current && current != lca) {
+            if (pathNodes.count(current) == 0) {
+                pathNodes.insert(current);
+            }
+            current = current->parent;
+        }
+    }
+
     // tuongtu cai tren nma cho nut
     for (auto& pair : *nodes) {
         Node* node = pair.second;
         int x = node->x + offsetX / scale;
         int y = node->y + offsetY / scale;
-        bool isOnPath = false;
-        if (lca) {
-            Node* current = person1;
-            while (current && current != lca) {
-                if (current == node) {
-                    isOnPath = true;
-                    break;
-                }
-                current = current->parent;
-            }
-            if (!isOnPath && node == lca) {
-                isOnPath = true;
-            }
-            if (!isOnPath) {
-                current = person2;
-                while (current && current != lca) {
-                    if (current == node) {
-                        isOnPath = true;
-                        break;
-                    }
-                    current = current->parent;
-                }
-            }
-        }
+        bool isOnPath = pathNodes.count(node) > 0;
+        
         if (node == person1 || node == person2) {
             if (canMarry) {
-                dc.SetBrush(wxBrush(wxColour(129, 199, 132))); // Xanh
+                dc.SetBrush(wxBrush(wxColour(129, 199, 132)));
             }
             else {
-                dc.SetBrush(wxBrush(wxColour(255, 180, 180))); // Do
+                dc.SetBrush(wxBrush(wxColour(255, 180, 180)));
             }
         }
         else if (isOnPath) {
-            if (canMarry) {
-                dc.SetBrush(wxBrush(wxColour(200, 255, 200))); 
-            }
-            else {
-                dc.SetBrush(wxBrush(wxColour(255, 220, 220))); 
-            }
+            dc.SetBrush(wxBrush(wxColour(220, 220, 220)));
         }
         else {
-            dc.SetBrush(*wxWHITE_BRUSH);   
+            dc.SetBrush(*wxWHITE_BRUSH);
         }
         dc.DrawRoundedRectangle(x, y, 100, 60, 8);
+
+
         wxSize textSize = dc.GetTextExtent(node->name);
         int textX = x + (100 - textSize.x) / 2;
         int textY = y + (60 - textSize.y) / 2;
@@ -212,10 +211,12 @@ void DrawPanel::SetMarriageCheck(Node* p1, Node* p2, Node* lca_node, bool result
             current->isOnPath = true;
             current = current->parent;
         }
-        if (current) current->isOnPath = true; 
+        lca->isOnPath = true;
         current = person2;
         while (current && current != lca) {
-            current->isOnPath = true;
+            if (!current->isOnPath) {
+                current->isOnPath = true;
+            }
             current = current->parent;
         }
     }
@@ -245,7 +246,7 @@ FamilyTree::FamilyTree() : wxFrame(nullptr, wxID_ANY, wxT("Quan Ly Cay Gia Pha")
     inputLabel->SetForegroundColour(wxColour(100, 100, 100));
     leftSizer->Add(inputLabel, 0, wxALL, 10);
     wxStaticText* instrText = new wxStaticText(leftPanel, wxID_ANY,
-        wxT("Nhap quan he (moi quan he tren 1 dong):\nDinh dang: ParentID ChildID"));
+        wxT("Nhap quan he (moi quan he tren 1 dong):\nDinh dang: Cha Con"));
     instrText->SetForegroundColour(wxColour(120, 120, 120));
     leftSizer->Add(instrText, 0, wxLEFT | wxRIGHT | wxBOTTOM, 10);
     inputText = new wxTextCtrl(leftPanel, wxID_ANY, wxT(""),

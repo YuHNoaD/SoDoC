@@ -42,7 +42,7 @@ bool Tree::canMarry(Node* u, Node* v)
     return (d1 + d2 > 3);
 }
 
-int Tree::getGenerationDistance(Node* anc, Node* p1, Node* p2)
+int Tree::getGenDistance(Node* anc, Node* p1, Node* p2)
 {
     if (!anc) return -1;  
     int d1 = 0;
@@ -154,24 +154,102 @@ wxString Tree::loadSampleDataFromFile()
     return content;
 }
 
-// postion cal
+// Helper function: calculate width needed for a subtree
+int Tree::calculateSubtreeWidth(Node* node) {
+    if (!node) return 0;
+    
+    if (node->children.empty()) {
+        return 1; // Leaf node takes 1 unit of width
+    }
+    
+    int totalWidth = 0;
+    for (Node* child : node->children) {
+        totalWidth += calculateSubtreeWidth(child);
+    }
+    
+    return totalWidth;
+}
+
+// Helper function: recursively position the tree
+void Tree::positionTreeRecursively(Node* node, int depth, int& currentX, int horizontalSpacing, int verticalSpacing) {
+    if (!node) return;
+    
+    // Position children first (post-order traversal)
+    for (Node* child : node->children) {
+        positionTreeRecursively(child, depth + 1, currentX, horizontalSpacing, verticalSpacing);
+    }
+    
+    // Calculate this node's x position based on its children
+    if (node->children.empty()) {
+        // Leaf node: position at currentX and advance currentX
+        node->x = currentX;
+        node->y = 80 + depth * verticalSpacing;
+        currentX += horizontalSpacing;
+    } else {
+        // Non-leaf node: position in the middle of its children
+        if (node->children.size() == 1) {
+            node->x = node->children[0]->x;
+            node->y = 80 + depth * verticalSpacing;
+        } else {
+            // Position at the average x of children
+            int totalX = 0;
+            for (Node* child : node->children) {
+                totalX += child->x;
+            }
+            node->x = totalX / static_cast<int>(node->children.size());
+            node->y = 80 + depth * verticalSpacing;
+        }
+    }
+}
+
+// position cal - Pyramid-style recursive tree layout algorithm
 void Tree::calculatePositions(Node* root, std::map<wxString, Node*>& nodes)
 {
     if (!root) return;
-    std::map<int, int> genCounter;
+
+    // Clear all positions first
+    for (auto& pair : nodes) {
+        pair.second->x = 0;
+        pair.second->y = 0;
+    }
+    
+    // Calculate generations using BFS to ensure all nodes have proper generation
     std::queue<Node*> q;
     q.push(root);
     root->generation = 0;
+
     while (!q.empty()) {
         Node* current = q.front();
         q.pop();
-        int gen = current->generation;
-        current->y = 80 + gen * 120;
-        current->x = 150 + genCounter[gen] * 180;
-        genCounter[gen]++;
+
         for (Node* child : current->children) {
-            child->generation = gen + 1;
+            child->generation = current->generation + 1;
             q.push(child);
         }
+    }
+    
+    // Calculate the total width of the tree and position recursively
+    int initialX = 100;
+    int horizontalSpacing = 150;  // Spacing between individual nodes
+    int verticalSpacing = 150;    // Spacing between generations
+    
+    positionTreeRecursively(root, 0, initialX, horizontalSpacing, verticalSpacing);
+    
+    // Adjust positions so the tree is centered
+    // Find the minimum and maximum x values
+    int minX = root->x, maxX = root->x;
+    for (auto& pair : nodes) {
+        Node* node = pair.second;
+        minX = std::min(minX, node->x);
+        maxX = std::max(maxX, node->x);
+    }
+    
+    // Calculate offset to center the tree
+    int centerX = (minX + maxX) / 2;
+    int offset = 400 - centerX;  // Center the tree at x=400
+    
+    // Apply offset to all nodes
+    for (auto& pair : nodes) {
+        pair.second->x += offset;
     }
 }
